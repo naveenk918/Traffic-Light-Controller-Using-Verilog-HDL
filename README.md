@@ -31,75 +31,74 @@ Capture screenshots of the waveform and save the simulation logs to include in y
 
 Verilog Code for Traffic Light Controller
 
-// traffic_light_controller.v
-module traffic_light_controller (
-    input wire clk,
-    input wire reset,
-    output reg [2:0] lights  // 3-bit output: [2]=Red, [1]=Yellow, [0]=Green
+module traffic_light_controller(
+    input clk,       // Clock signal
+    input reset,     // Reset signal
+    output reg [2:0] lights // 3-bit output Red, Yellow, Green lights
 );
-    // Define states
-    typedef enum reg [1:0] {
-        GREEN = 2'b00,
-        YELLOW = 2'b01,
-        RED = 2'b10
-    } state_t;
 
-    state_t current_state, next_state;
-    reg [3:0] counter;  // Timer counter
+        reg [1:0] state;
+    
+    // Timer counter for state transitions
+    reg [3:0] timer;
 
-    // State transition based on counter
+    // State transition logic
     always @(posedge clk or posedge reset) begin
         if (reset) begin
-            current_state <= GREEN;
-            counter <= 0;
-        end else begin
-            if (counter == 4'd9) begin
-                current_state <= next_state;
-                counter <= 0;
-            end else begin
-                counter <= counter + 1;
+            state <= 2'b00; // Red state
+            timer <= 4'd0;
+        end
+	 else
+	 begin
+            if (timer == 4'd9) begin // Change state after 10 clock cycles
+                case (state)
+                    2'b00: begin
+                        state <= 2'b10; // Green state
+                        timer <= 4'd0;
+                    end
+                    2'b10: begin
+                        state <= 2'b01; // Yellow state
+                        timer <= 4'd0;
+                    end
+                    2'b01: begin
+                        state <= 2'b00; // Red state
+                        timer <= 4'd0;
+                    end
+                endcase
+            end
+	 else
+	 begin
+                timer <= timer + 1;
             end
         end
     end
 
-    // Next state logic and output control
+    // Output logic
     always @(*) begin
-        case (current_state)
-            GREEN: begin
-                lights = 3'b001;  // Green light on
-                next_state = YELLOW;
-            end
-            YELLOW: begin
-                lights = 3'b010;  // Yellow light on
-                next_state = RED;
-            end
-            RED: begin
-                lights = 3'b100;  // Red light on
-                next_state = GREEN;
-            end
-            default: begin
-                lights = 3'b000;  // All lights off
-                next_state = GREEN;
-            end
+        case (state)
+            2'b00:    lights = 3'b100; // Red
+            2'b10:    lights = 3'b001; // Green
+            2'b01:    lights = 3'b010; // Yellow
+            default:  lights = 3'b100; // Default to Red
         endcase
     end
+
 endmodule
+
+
+OUTPUT : ![traffic light controller](https://github.com/user-attachments/assets/81252d51-f854-462e-8e91-a81aecf3759a)
 
 Testbench for Traffic Light Controller
 
 // traffic_light_controller_tb.v
 `timescale 1ns / 1ps
 
-module traffic_light_controller_tb;
-
-    // Inputs
+module tb_traffic_light_controller;
     reg clk;
     reg reset;
-
-    // Outputs
     wire [2:0] lights;
 
-    // Instantiate the Unit Under Test (UUT)
+    // Instantiate the traffic light controller
     traffic_light_controller uut (
         .clk(clk),
         .reset(reset),
@@ -107,26 +106,25 @@ module traffic_light_controller_tb;
     );
 
     // Clock generation
-    always #5 clk = ~clk;  // Toggle clock every 5 ns
+    always #5 clk = ~clk; // 10 time units clock period
 
-    // Test procedure
+    // Testbench process
     initial begin
-        // Initialize inputs
+        // Initialize signals
         clk = 0;
         reset = 1;
 
-        // Release reset after some time
-        #10 reset = 0;
+        // Apply reset for 10 time units
+        #5 reset = 0;
 
-        // Run simulation for 100 ns to observe light transitions
-        #100 $stop;
+        // Run simulation for 200 time units
+        #200 $finish;
     end
 
-    // Monitor outputs
+    // Monitor output values
     initial begin
-        $monitor("Time=%0t | Lights (R Y G) = %b", $time, lights);
+        $monitor("Time: %0t, Lights: %b", $time, lights);
     end
-
 endmodule
 
 
